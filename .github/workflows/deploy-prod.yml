@@ -110,3 +110,5 @@ jobs:
           curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/es > /dev/null
           curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/en > /dev/null
           curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/es/articulos/que-es-bigmelo > /dev/null
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/es/articulos/como-crear-tu-primer-perfil-en-bigmelo > /dev/null
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/en/articles/how-to-create-your-first-bigmelo-profile > /dev/null

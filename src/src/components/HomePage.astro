@@ -20,7 +20,7 @@ interface Props {
 const { locale } = Astro.props;
 const posts = await getPublishedPosts(locale);
 const categories = await getCategories(locale);
-const featured = posts.find((post) => post.data.featured) ?? posts[0];
+const featured = posts[0];
 const latestPosts = featured ? posts.filter((post) => post.id !== featured.id) : posts;
 const featuredCategory = featured ? await getEntry(featured.data.categories[0]) : undefined;
 const nextLocale = otherLocale(locale);
@@ -31,7 +31,7 @@ const copy = locale === 'es'
       categoriesLead: 'Una biblioteca en crecimiento sobre producto, inteligencia artificial y presencia digital.',
       categoriesTitle: 'Ideas organizadas para avanzar con claridad.',
       description: 'Ideas, guías y perspectivas de Bigmelo sobre inteligencia artificial, identidad y presencia digital.',
-      featured: 'Artículo destacado',
+      featured: 'Último artículo',
       latestEyebrow: 'Lecturas recientes',
       latestLead: 'Perspectivas prácticas para comunicar mejor lo que sabes y convertirlo en una experiencia útil.',
       latestTitle: 'Conocimiento para una nueva forma de estar presente.',
@@ -42,7 +42,7 @@ const copy = locale === 'es'
       categoriesLead: 'A growing library about product, artificial intelligence, and digital presence.',
       categoriesTitle: 'Ideas organized to help you move forward with clarity.',
       description: 'Ideas, guides, and perspectives from Bigmelo on artificial intelligence, identity, and digital presence.',
-      featured: 'Featured article',
+      featured: 'Latest article',
       latestEyebrow: 'Latest reading',
       latestLead: 'Practical perspectives for communicating what you know and turning it into a useful experience.',
       latestTitle: 'Knowledge for a new way of being present.',
