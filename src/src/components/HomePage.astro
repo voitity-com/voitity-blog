@@ -31,26 +31,22 @@ const copy = locale === 'es'
       categoriesLead: 'Una biblioteca en crecimiento sobre producto, inteligencia artificial y presencia digital.',
       categoriesTitle: 'Ideas organizadas para avanzar con claridad.',
       description: 'Ideas, guías y perspectivas de Bigmelo sobre inteligencia artificial, identidad y presencia digital.',
-      eyebrow: 'Bigmelo Journal · Ideas para una presencia digital más humana',
       featured: 'Artículo destacado',
       latestEyebrow: 'Lecturas recientes',
       latestLead: 'Perspectivas prácticas para comunicar mejor lo que sabes y convertirlo en una experiencia útil.',
       latestTitle: 'Conocimiento para una nueva forma de estar presente.',
       read: 'Leer la historia',
-      title: 'Pensar, crear y compartir en la era de la presencia digital.',
     }
   : {
       categoriesEyebrow: 'Explore by topic',
       categoriesLead: 'A growing library about product, artificial intelligence, and digital presence.',
       categoriesTitle: 'Ideas organized to help you move forward with clarity.',
       description: 'Ideas, guides, and perspectives from Bigmelo on artificial intelligence, identity, and digital presence.',
-      eyebrow: 'Bigmelo Journal · Ideas for a more human digital presence',
       featured: 'Featured article',
       latestEyebrow: 'Latest reading',
       latestLead: 'Practical perspectives for communicating what you know and turning it into a useful experience.',
       latestTitle: 'Knowledge for a new way of being present.',
       read: 'Read the story',
-      title: 'Think, create, and share in the age of digital presence.',
     };
 
 const title = locale === 'es' ? 'Blog de Bigmelo | Presencia digital e inteligencia artificial' : 'Bigmelo Blog | Digital presence and artificial intelligence';
@@ -79,18 +75,8 @@ const structuredData = {
   ]}
   structuredData={structuredData}
 >
-  <section class="journal-hero">
-    <div class="journal-hero-grid" aria-hidden="true"></div>
-    <div class="page-shell journal-hero-content">
-      <p class="eyebrow">{copy.eyebrow}</p>
-      <h1>{copy.title}</h1>
-      <p class="hero-intro">{copy.description}</p>
-      <div class="hero-scroll-note"><span></span>{locale === 'es' ? 'Descubre la primera historia' : 'Discover the first story'}</div>
-    </div>
-  </section>
-
   {featured && featuredCategory && (
-    <section class="featured-section page-shell">
+    <section class="featured-section featured-section-home page-shell">
       <a class="featured-visual" href={getPostUrl(featured)} aria-label={featured.data.title}>
         <Image src={featured.data.cover} alt={featured.data.coverAlt} widths={[720, 1080, 1440]} sizes="(max-width: 900px) 100vw, 58vw" format="webp" loading="eager" />
         <span class="image-badge">{copy.featured}</span>

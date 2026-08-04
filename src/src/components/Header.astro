@@ -1,5 +1,5 @@
 ---
-import { locales, otherLocale, type Locale } from '../lib/i18n';
+import { locales, type Locale } from '../lib/i18n';
 
 interface Props {
   alternatePath?: string;
@@ -8,13 +8,17 @@ interface Props {
 
 const { alternatePath, locale } = Astro.props;
 const config = locales[locale];
-const nextLocale = otherLocale(locale);
 const mainSiteUrl = import.meta.env.PUBLIC_MAIN_SITE_URL ?? 'https://bigmelo.com';
 const adminUrl = import.meta.env.PUBLIC_ADMIN_URL ?? 'https://admin.bigmelo.com';
+const currentPath = Astro.url.pathname;
+const esPath = locale === 'es' ? currentPath : (alternatePath ?? locales.es.homePath);
+const enPath = locale === 'en' ? currentPath : (alternatePath ?? locales.en.homePath);
+const signInUrl = new URL('/auth/custom/sign-in', adminUrl);
+signInUrl.searchParams.set('locale', locale);
 
 const copy = locale === 'es'
-  ? { blog: 'Blog', contact: 'Contacto', menu: 'Abrir navegación', plans: 'Planes', product: 'Producto', signIn: 'Ingresar' }
-  : { blog: 'Blog', contact: 'Contact', menu: 'Open navigation', plans: 'Plans', product: 'Product', signIn: 'Sign in' };
+  ? { blog: 'Blog', contact: 'Contacto', plans: 'Planes', product: 'Producto', signIn: 'Ingresar' }
+  : { blog: 'Blog', contact: 'Contact', plans: 'Plans', product: 'Product', signIn: 'Sign in' };
 ---
 
 <header class="site-header" data-site-header>
@@ -24,10 +28,6 @@ const copy = locale === 'es'
       <span>Blog</span>
     </a>
 
-    <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-navigation" aria-label={copy.menu} data-menu-button>
-      <span></span><span></span>
-    </button>
-
     <nav class="site-navigation" id="site-navigation" aria-label="Main navigation" data-navigation>
       <a href={`${mainSiteUrl}/#product`}>{copy.product}</a>
       <a href={`${mainSiteUrl}/#plans`}>{copy.plans}</a>
@@ -36,29 +36,13 @@ const copy = locale === 'es'
     </nav>
 
     <div class="header-actions">
-      <a class="language-link" href={alternatePath ?? locales[nextLocale].homePath} hreflang={nextLocale}>
-        {config.languageLabel}
+      <a class="admin-link" href={signInUrl}>
+        {copy.signIn}
       </a>
-      <a class="sign-in-link" href={adminUrl}>{copy.signIn}<span aria-hidden="true">↗</span></a>
+      <div class="language-switch" aria-label={locale === 'es' ? 'Idioma' : 'Language'}>
+        <a class:list={[locale === 'es' && 'is-active']} href={esPath} hreflang="es">ES</a>
+        <a class:list={[locale === 'en' && 'is-active']} href={enPath} hreflang="en">EN</a>
+      </div>
     </div>
   </div>
 </header>
-
-<script>
-  const header = document.querySelector('[data-site-header]');
-  const button = header?.querySelector('[data-menu-button]');
-  const navigation = header?.querySelector('[data-navigation]');
-
-  button?.addEventListener('click', () => {
-    const isOpen = button.getAttribute('aria-expanded') === 'true';
-    button.setAttribute('aria-expanded', String(!isOpen));
-    navigation?.classList.toggle('is-open', !isOpen);
-  });
-
-  navigation?.querySelectorAll('a').forEach((link) => {
-    link.addEventListener('click', () => {
-      button?.setAttribute('aria-expanded', 'false');
-      navigation.classList.remove('is-open');
-    });
-  });
-</script>

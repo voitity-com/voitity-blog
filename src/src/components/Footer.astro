@@ -1,5 +1,5 @@
 ---
-import { locales, type Locale } from '../lib/i18n';
+import { type Locale } from '../lib/i18n';
 
 interface Props {
   locale: Locale;
@@ -7,42 +7,29 @@ interface Props {
 
 const { locale } = Astro.props;
 const mainSiteUrl = import.meta.env.PUBLIC_MAIN_SITE_URL ?? 'https://bigmelo.com';
-const config = locales[locale];
 const copy = locale === 'es'
   ? {
-      cookies: 'Preferencias de cookies',
       data: 'Eliminación de datos',
       privacy: 'Privacidad',
-      tagline: 'Ideas para construir una presencia digital más humana, útil y confiable.',
+      tagline: 'Presencias digitales con inteligencia artificial, voz autorizada e información verificada.',
       terms: 'Términos',
     }
   : {
-      cookies: 'Cookie preferences',
       data: 'Data deletion',
       privacy: 'Privacy',
-      tagline: 'Ideas for building a more human, useful, and trustworthy digital presence.',
+      tagline: 'AI-powered digital presences with authorized voice and verified information.',
       terms: 'Terms',
     };
 ---
 
 <footer class="site-footer">
-  <div class="footer-shell">
-    <div class="footer-brand-column">
-      <a class="brand footer-brand" href={config.homePath} aria-label="Bigmelo Blog">
-        <img src="/bigmelo-logo.png" alt="Bigmelo" width="159" height="32" />
-        <span>Blog</span>
-      </a>
-      <p>{copy.tagline}</p>
-    </div>
-    <div class="footer-links">
-      <a href={locale === 'es' ? `${mainSiteUrl}/privacidad` : `${mainSiteUrl}/privacy`}>{copy.privacy}</a>
-      <a href={locale === 'es' ? `${mainSiteUrl}/terminos` : `${mainSiteUrl}/terms`}>{copy.terms}</a>
-      <a href={locale === 'es' ? `${mainSiteUrl}/eliminacion-datos` : `${mainSiteUrl}/data-deletion`}>{copy.data}</a>
-      <button type="button" data-cookie-settings>{copy.cookies}</button>
-    </div>
-  </div>
-  <div class="footer-bottom">
-    <span>© {new Date().getFullYear()} Bigmelo</span>
-    <span>bigmelo.com</span>
+  <a class="brand" href="#top" aria-label="Bigmelo">
+    <img class="brand-logo" src="/bigmelo-logo.png" alt="Bigmelo" width="159" height="32" />
+  </a>
+  <p>{copy.tagline}</p>
+  <div class="footer-links">
+    <a href={locale === 'es' ? `${mainSiteUrl}/privacidad` : `${mainSiteUrl}/privacy`}>{copy.privacy}</a>
+    <a href={locale === 'es' ? `${mainSiteUrl}/terminos` : `${mainSiteUrl}/terms`}>{copy.terms}</a>
+    <a href={locale === 'es' ? `${mainSiteUrl}/eliminacion-datos` : `${mainSiteUrl}/data-deletion`}>{copy.data}</a>
   </div>
 </footer>
