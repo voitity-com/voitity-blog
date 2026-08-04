@@ -1,0 +1,64 @@
+---
+import { locales, otherLocale, type Locale } from '../lib/i18n';
+
+interface Props {
+  alternatePath?: string;
+  locale: Locale;
+}
+
+const { alternatePath, locale } = Astro.props;
+const config = locales[locale];
+const nextLocale = otherLocale(locale);
+const mainSiteUrl = import.meta.env.PUBLIC_MAIN_SITE_URL ?? 'https://bigmelo.com';
+const adminUrl = import.meta.env.PUBLIC_ADMIN_URL ?? 'https://admin.bigmelo.com';
+
+const copy = locale === 'es'
+  ? { blog: 'Blog', contact: 'Contacto', menu: 'Abrir navegación', plans: 'Planes', product: 'Producto', signIn: 'Ingresar' }
+  : { blog: 'Blog', contact: 'Contact', menu: 'Open navigation', plans: 'Plans', product: 'Product', signIn: 'Sign in' };
+---
+
+<header class="site-header" data-site-header>
+  <div class="header-shell">
+    <a class="brand" href={config.homePath} aria-label="Bigmelo Blog">
+      <img src="/bigmelo-logo.png" alt="Bigmelo" width="159" height="32" />
+      <span>Blog</span>
+    </a>
+
+    <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-navigation" aria-label={copy.menu} data-menu-button>
+      <span></span><span></span>
+    </button>
+
+    <nav class="site-navigation" id="site-navigation" aria-label="Main navigation" data-navigation>
+      <a href={`${mainSiteUrl}/#product`}>{copy.product}</a>
+      <a href={`${mainSiteUrl}/#plans`}>{copy.plans}</a>
+      <a class="is-current" href={config.homePath}>{copy.blog}</a>
+      <a href={`${mainSiteUrl}/#contact`}>{copy.contact}</a>
+    </nav>
+
+    <div class="header-actions">
+      <a class="language-link" href={alternatePath ?? locales[nextLocale].homePath} hreflang={nextLocale}>
+        {config.languageLabel}
+      </a>
+      <a class="sign-in-link" href={adminUrl}>{copy.signIn}<span aria-hidden="true">↗</span></a>
+    </div>
+  </div>
+</header>
+
+<script>
+  const header = document.querySelector('[data-site-header]');
+  const button = header?.querySelector('[data-menu-button]');
+  const navigation = header?.querySelector('[data-navigation]');
+
+  button?.addEventListener('click', () => {
+    const isOpen = button.getAttribute('aria-expanded') === 'true';
+    button.setAttribute('aria-expanded', String(!isOpen));
+    navigation?.classList.toggle('is-open', !isOpen);
+  });
+
+  navigation?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => {
+      button?.setAttribute('aria-expanded', 'false');
+      navigation.classList.remove('is-open');
+    });
+  });
+</script>

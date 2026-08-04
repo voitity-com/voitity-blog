@@ -1,0 +1,33 @@
+---
+import { Image } from 'astro:assets';
+
+import type { BlogPost } from '../lib/content';
+import { formatDate, type Locale } from '../lib/i18n';
+
+interface Props {
+  categoryName: string;
+  locale: Locale;
+  post: BlogPost;
+  url: string;
+}
+
+const { categoryName, locale, post, url } = Astro.props;
+---
+
+<article class="article-card">
+  <a class="article-card-image" href={url} aria-label={post.data.title}>
+    <Image src={post.data.cover} alt={post.data.coverAlt} widths={[560, 840]} sizes="(max-width: 760px) 100vw, 42vw" format="webp" loading="lazy" />
+  </a>
+  <div class="article-card-content">
+    <div class="article-meta">
+      <span>{categoryName}</span>
+      <span aria-hidden="true">·</span>
+      <time datetime={post.data.publishedAt.toISOString()}>{formatDate(post.data.publishedAt, locale)}</time>
+    </div>
+    <h2><a href={url}>{post.data.title}</a></h2>
+    <p>{post.data.description}</p>
+    <a class="read-link" href={url}>
+      {locale === 'es' ? 'Leer artículo' : 'Read article'} <span aria-hidden="true">→</span>
+    </a>
+  </div>
+</article>

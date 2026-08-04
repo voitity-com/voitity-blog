@@ -1,0 +1,78 @@
+---
+import AnalyticsConsent from '../components/AnalyticsConsent.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import { locales, type Locale } from '../lib/i18n';
+import '../styles/global.css';
+
+interface AlternateLink {
+  href: string;
+  hreflang: string;
+}
+
+interface Props {
+  alternateLinks?: AlternateLink[];
+  alternatePath?: string;
+  canonicalPath: string;
+  description: string;
+  image?: string;
+  locale: Locale;
+  robots?: string;
+  structuredData?: Record<string, unknown> | Array<Record<string, unknown>>;
+  title: string;
+  type?: 'article' | 'website';
+}
+
+const {
+  alternateLinks = [],
+  alternatePath,
+  canonicalPath,
+  description,
+  image = '/og.png',
+  locale,
+  robots = 'index,follow,max-image-preview:large,max-snippet:-1',
+  structuredData,
+  title,
+  type = 'website',
+} = Astro.props;
+
+const site = Astro.site ?? new URL('https://blog.bigmelo.com');
+const canonical = new URL(canonicalPath, site);
+const socialImage = new URL(image, site);
+---
+
+<!doctype html>
+<html lang={locales[locale].htmlLang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content={robots} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/bigmelo-icon.png" type="image/png" />
+    <link rel="alternate" type="application/rss+xml" title="Bigmelo Blog" href={new URL('/rss.xml', site)} />
+    {alternateLinks.map((link) => <link rel="alternate" hreflang={link.hreflang} href={new URL(link.href, site)} />)}
+    <meta property="og:type" content={type} />
+    <meta property="og:site_name" content="Bigmelo Blog" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={socialImage} />
+    <meta property="og:locale" content={locale === 'es' ? 'es_CO' : 'en_US'} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={socialImage} />
+    {structuredData && <script is:inline type="application/ld+json" set:html={JSON.stringify(structuredData)} />}
+  </head>
+  <body>
+    <Header locale={locale} alternatePath={alternatePath} />
+    <main>
+      <slot />
+    </main>
+    <Footer locale={locale} />
+    <AnalyticsConsent locale={locale} />
+  </body>
+</html>

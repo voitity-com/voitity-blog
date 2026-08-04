@@ -1,0 +1,93 @@
+---
+import type { Locale } from '../lib/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const measurementId = import.meta.env.PUBLIC_GA4_MEASUREMENT_ID ?? 'G-T9MKE6R87P';
+const mainSiteUrl = import.meta.env.PUBLIC_MAIN_SITE_URL ?? 'https://bigmelo.com';
+const copy = locale === 'es'
+  ? {
+      accept: 'Aceptar',
+      body: 'Usamos analítica opcional para entender qué contenidos resultan útiles. No enviamos información privada ni contenido de conversaciones.',
+      privacy: 'Ver privacidad',
+      reject: 'Rechazar',
+      title: 'Tu privacidad importa',
+    }
+  : {
+      accept: 'Accept',
+      body: 'We use optional analytics to understand which content is useful. We do not send private information or conversation content.',
+      privacy: 'View privacy policy',
+      reject: 'Reject',
+      title: 'Your privacy matters',
+    };
+---
+
+<aside class="analytics-consent" role="dialog" aria-label={copy.title} hidden data-consent-banner data-measurement-id={measurementId}>
+  <div>
+    <strong>{copy.title}</strong>
+    <p>{copy.body}</p>
+    <a href={locale === 'es' ? `${mainSiteUrl}/privacidad` : `${mainSiteUrl}/privacy`}>{copy.privacy}</a>
+  </div>
+  <div class="consent-actions">
+    <button class="button button-secondary" type="button" data-consent="denied">{copy.reject}</button>
+    <button class="button button-primary" type="button" data-consent="granted">{copy.accept}</button>
+  </div>
+</aside>
+
+<script>
+  const COOKIE_NAME = 'bigmelo_analytics_consent';
+  const banner = document.querySelector<HTMLElement>('[data-consent-banner]');
+  const measurementId = banner?.dataset.measurementId;
+  const isBigmeloHost = location.hostname === 'bigmelo.com' || location.hostname.endsWith('.bigmelo.com');
+
+  function readConsent() {
+    const part = document.cookie.split(';').map((value) => value.trim()).find((value) => value.startsWith(`${COOKIE_NAME}=`));
+    return part?.split('=')[1];
+  }
+
+  function cookieAttributes(maxAge: number) {
+    const domain = isBigmeloHost ? '; Domain=.bigmelo.com; Secure' : '';
+    return `Path=/; Max-Age=${maxAge}; SameSite=Lax${domain}`;
+  }
+
+  function loadAnalytics() {
+    if (!measurementId || !isBigmeloHost || document.getElementById('bigmelo-blog-ga')) return;
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = window.gtag || ((...args: unknown[]) => { window.dataLayer.push(args); });
+    window.gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
+    window.gtag('consent', 'update', { analytics_storage: 'granted' });
+    window.gtag('js', new Date());
+    window.gtag('config', measurementId, {
+      allow_ad_personalization_signals: false,
+      allow_google_signals: false,
+      app_surface: 'blog',
+      page_path: location.pathname,
+    });
+    const script = document.createElement('script');
+    script.async = true;
+    script.id = 'bigmelo-blog-ga';
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+    document.head.appendChild(script);
+  }
+
+  function setConsent(value: 'granted' | 'denied') {
+    document.cookie = `${COOKIE_NAME}=${value}; ${cookieAttributes(60 * 60 * 24 * 365)}`;
+    if (value === 'granted') loadAnalytics();
+    banner?.setAttribute('hidden', '');
+  }
+
+  banner?.querySelectorAll<HTMLButtonElement>('[data-consent]').forEach((button) => {
+    button.addEventListener('click', () => setConsent(button.dataset.consent as 'granted' | 'denied'));
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('[data-cookie-settings]').forEach((button) => {
+    button.addEventListener('click', () => banner?.removeAttribute('hidden'));
+  });
+
+  const consent = readConsent();
+  if (consent === 'granted') loadAnalytics();
+  if (consent !== 'granted' && consent !== 'denied') banner?.removeAttribute('hidden');
+</script>

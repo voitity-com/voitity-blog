@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCategories, getCategoryUrl, getPublishedPosts, postBelongsToCategory } from '../lib/content';
+import { locales, otherLocale, type Locale } from '../lib/i18n';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const categories = await getCategories(locale);
+const posts = await getPublishedPosts(locale);
+const nextLocale = otherLocale(locale);
+const copy = locale === 'es'
+  ? { description: 'Explora los artículos de Bigmelo por producto, inteligencia artificial y guías.', eyebrow: 'Temas', title: 'Explora por categoría.' }
+  : { description: 'Explore Bigmelo articles about product, artificial intelligence, and practical guides.', eyebrow: 'Topics', title: 'Explore by category.' };
+---
+
+<BaseLayout locale={locale} title={`${copy.title} | Bigmelo Blog`} description={copy.description} canonicalPath={locales[locale].categoriesPath} alternatePath={locales[nextLocale].categoriesPath}>
+  <header class="archive-header page-shell">
+    <p class="eyebrow">{copy.eyebrow}</p>
+    <h1>{copy.title}</h1>
+    <p>{copy.description}</p>
+  </header>
+  <section class="archive-content page-shell">
+    <div class="category-grid">
+      {categories.map((category, index) => {
+        const count = posts.filter((post) => postBelongsToCategory(post, category)).length;
+        return (
+          <a class="category-card" href={getCategoryUrl(category)}>
+            <span class="category-index">0{index + 1}</span>
+            <div><p>{category.data.eyebrow}</p><h2>{category.data.name}</h2><span>{category.data.description}</span></div>
+            <div class="category-card-footer"><span>{count} {locale === 'es' ? 'artículos' : 'articles'}</span><span>↗</span></div>
+          </a>
+        );
+      })}
+    </div>
+  </section>
+</BaseLayout>

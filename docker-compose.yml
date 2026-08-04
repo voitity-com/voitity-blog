@@ -1,0 +1,19 @@
+services:
+  voitity-blog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voitity-blog-app
+    working_dir: /app/src
+    ports:
+      - "3002:4321"
+    env_file:
+      - ./src/.env
+    environment:
+      - NODE_ENV=development
+      - HOST=0.0.0.0
+      - PORT=4321
+    volumes:
+      - ./src:/app/src
+      - /app/src/node_modules
+    command: npm run dev -- --host 0.0.0.0 --port 4321

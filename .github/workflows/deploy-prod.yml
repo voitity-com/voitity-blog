@@ -1,0 +1,112 @@
+name: Deploy Blog
+
+on:
+  push:
+    branches:
+      - prod
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  BLOG_BUCKET: ${{ vars.AWS_BLOG_BUCKET }}
+  BLOG_DISTRIBUTION_ID: ${{ vars.AWS_BLOG_DISTRIBUTION_ID }}
+  AWS_ROLE_ARN: ${{ vars.AWS_BLOG_DEPLOY_ROLE_ARN }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Validate deployment configuration
+        run: |
+          test -n "$BLOG_BUCKET"
+          test -n "$BLOG_DISTRIBUTION_ID"
+          test -n "$AWS_ROLE_ARN"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          CI: "true"
+          SITE_URL: https://blog.bigmelo.com
+          PUBLIC_MAIN_SITE_URL: https://bigmelo.com
+          PUBLIC_ADMIN_URL: https://admin.bigmelo.com
+          PUBLIC_GA4_MEASUREMENT_ID: G-T9MKE6R87P
+        run: npm run build
+
+      - name: Sync static files
+        run: |
+          aws s3 sync dist "s3://$BLOG_BUCKET" \
+            --delete \
+            --cache-control "public,max-age=3600" \
+            --exclude "*.html" \
+            --exclude "*.xml" \
+            --exclude "robots.txt"
+
+          aws s3 sync dist/_astro "s3://$BLOG_BUCKET/_astro" \
+            --delete \
+            --cache-control "public,max-age=31536000,immutable"
+
+          aws s3 sync dist "s3://$BLOG_BUCKET" \
+            --delete \
+            --exclude "*" \
+            --include "*.html" \
+            --cache-control "no-cache,no-store,must-revalidate" \
+            --content-type "text/html; charset=utf-8"
+
+          aws s3 sync dist "s3://$BLOG_BUCKET" \
+            --delete \
+            --exclude "*" \
+            --include "*.xml" \
+            --cache-control "public,max-age=300"
+
+          aws s3 cp dist/robots.txt "s3://$BLOG_BUCKET/robots.txt" \
+            --cache-control "public,max-age=300" \
+            --content-type "text/plain; charset=utf-8"
+
+      - name: Invalidate CloudFront
+        id: invalidation
+        run: |
+          INVALIDATION_ID="$(aws cloudfront create-invalidation \
+            --distribution-id "$BLOG_DISTRIBUTION_ID" \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)"
+          echo "id=$INVALIDATION_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for deployment
+        run: |
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$BLOG_DISTRIBUTION_ID" \
+            --id "${{ steps.invalidation.outputs.id }}"
+
+      - name: Smoke test
+        working-directory: .
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/es > /dev/null
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/en > /dev/null
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/es/articulos/que-es-bigmelo > /dev/null

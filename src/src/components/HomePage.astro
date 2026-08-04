@@ -1,0 +1,165 @@
+---
+import { getEntry } from 'astro:content';
+import { Image } from 'astro:assets';
+
+import ArticleCard from './ArticleCard.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import {
+  getCategories,
+  getCategoryUrl,
+  getPostUrl,
+  getPublishedPosts,
+  postBelongsToCategory,
+} from '../lib/content';
+import { formatDate, locales, otherLocale, type Locale } from '../lib/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const posts = await getPublishedPosts(locale);
+const categories = await getCategories(locale);
+const featured = posts.find((post) => post.data.featured) ?? posts[0];
+const latestPosts = featured ? posts.filter((post) => post.id !== featured.id) : posts;
+const featuredCategory = featured ? await getEntry(featured.data.categories[0]) : undefined;
+const nextLocale = otherLocale(locale);
+
+const copy = locale === 'es'
+  ? {
+      categoriesEyebrow: 'Explora por tema',
+      categoriesLead: 'Una biblioteca en crecimiento sobre producto, inteligencia artificial y presencia digital.',
+      categoriesTitle: 'Ideas organizadas para avanzar con claridad.',
+      description: 'Ideas, guías y perspectivas de Bigmelo sobre inteligencia artificial, identidad y presencia digital.',
+      eyebrow: 'Bigmelo Journal · Ideas para una presencia digital más humana',
+      featured: 'Artículo destacado',
+      latestEyebrow: 'Lecturas recientes',
+      latestLead: 'Perspectivas prácticas para comunicar mejor lo que sabes y convertirlo en una experiencia útil.',
+      latestTitle: 'Conocimiento para una nueva forma de estar presente.',
+      read: 'Leer la historia',
+      title: 'Pensar, crear y compartir en la era de la presencia digital.',
+    }
+  : {
+      categoriesEyebrow: 'Explore by topic',
+      categoriesLead: 'A growing library about product, artificial intelligence, and digital presence.',
+      categoriesTitle: 'Ideas organized to help you move forward with clarity.',
+      description: 'Ideas, guides, and perspectives from Bigmelo on artificial intelligence, identity, and digital presence.',
+      eyebrow: 'Bigmelo Journal · Ideas for a more human digital presence',
+      featured: 'Featured article',
+      latestEyebrow: 'Latest reading',
+      latestLead: 'Practical perspectives for communicating what you know and turning it into a useful experience.',
+      latestTitle: 'Knowledge for a new way of being present.',
+      read: 'Read the story',
+      title: 'Think, create, and share in the age of digital presence.',
+    };
+
+const title = locale === 'es' ? 'Blog de Bigmelo | Presencia digital e inteligencia artificial' : 'Bigmelo Blog | Digital presence and artificial intelligence';
+const canonicalPath = locales[locale].homePath;
+const alternatePath = locales[nextLocale].homePath;
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'Blog',
+  description: copy.description,
+  inLanguage: locale === 'es' ? 'es-CO' : 'en-US',
+  name: 'Bigmelo Blog',
+  url: new URL(canonicalPath, Astro.site),
+};
+---
+
+<BaseLayout
+  locale={locale}
+  title={title}
+  description={copy.description}
+  canonicalPath={canonicalPath}
+  alternatePath={alternatePath}
+  alternateLinks={[
+    { href: '/es', hreflang: 'es' },
+    { href: '/en', hreflang: 'en' },
+    { href: '/es', hreflang: 'x-default' },
+  ]}
+  structuredData={structuredData}
+>
+  <section class="journal-hero">
+    <div class="journal-hero-grid" aria-hidden="true"></div>
+    <div class="page-shell journal-hero-content">
+      <p class="eyebrow">{copy.eyebrow}</p>
+      <h1>{copy.title}</h1>
+      <p class="hero-intro">{copy.description}</p>
+      <div class="hero-scroll-note"><span></span>{locale === 'es' ? 'Descubre la primera historia' : 'Discover the first story'}</div>
+    </div>
+  </section>
+
+  {featured && featuredCategory && (
+    <section class="featured-section page-shell">
+      <a class="featured-visual" href={getPostUrl(featured)} aria-label={featured.data.title}>
+        <Image src={featured.data.cover} alt={featured.data.coverAlt} widths={[720, 1080, 1440]} sizes="(max-width: 900px) 100vw, 58vw" format="webp" loading="eager" />
+        <span class="image-badge">{copy.featured}</span>
+      </a>
+      <div class="featured-copy">
+        <div class="article-meta">
+          <span>{featuredCategory.data.name}</span>
+          <span aria-hidden="true">·</span>
+          <time datetime={featured.data.publishedAt.toISOString()}>{formatDate(featured.data.publishedAt, locale)}</time>
+        </div>
+        <h2><a href={getPostUrl(featured)}>{featured.data.title}</a></h2>
+        <p>{featured.data.description}</p>
+        <a class="button button-primary" href={getPostUrl(featured)}>{copy.read}<span aria-hidden="true">→</span></a>
+      </div>
+    </section>
+  )}
+
+  <section class="categories-section" id="categories">
+    <div class="page-shell">
+      <div class="section-heading section-heading-split">
+        <div>
+          <p class="eyebrow">{copy.categoriesEyebrow}</p>
+          <h2>{copy.categoriesTitle}</h2>
+        </div>
+        <p>{copy.categoriesLead}</p>
+      </div>
+      <div class="category-grid">
+        {categories.map((category, index) => {
+          const count = posts.filter((post) => postBelongsToCategory(post, category)).length;
+          return (
+            <a class="category-card" href={getCategoryUrl(category)}>
+              <span class="category-index">0{index + 1}</span>
+              <div>
+                <p>{category.data.eyebrow}</p>
+                <h3>{category.data.name}</h3>
+                <span>{category.data.description}</span>
+              </div>
+              <div class="category-card-footer">
+                <span>{count} {locale === 'es' ? (count === 1 ? 'artículo' : 'artículos') : (count === 1 ? 'article' : 'articles')}</span>
+                <span aria-hidden="true">↗</span>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  </section>
+
+  <section class="latest-section page-shell">
+    <div class="section-heading">
+      <p class="eyebrow">{copy.latestEyebrow}</p>
+      <h2>{copy.latestTitle}</h2>
+      <p>{copy.latestLead}</p>
+    </div>
+    <div class="article-grid">
+      {(latestPosts.length ? latestPosts : posts).map(async (post) => {
+        const category = await getEntry(post.data.categories[0]);
+        return category ? <ArticleCard post={post} locale={locale} categoryName={category.data.name} url={getPostUrl(post)} /> : null;
+      })}
+    </div>
+  </section>
+
+  <section class="newsletter-cta">
+    <div class="page-shell newsletter-inner">
+      <p class="eyebrow">Bigmelo</p>
+      <h2>{locale === 'es' ? 'Convierte lo que sabes en una presencia que puede conversar.' : 'Turn what you know into a presence that can have a conversation.'}</h2>
+      <a class="button button-light" href={(import.meta.env.PUBLIC_MAIN_SITE_URL ?? 'https://bigmelo.com') + '/#contact'}>
+        {locale === 'es' ? 'Conocer Bigmelo' : 'Discover Bigmelo'} <span aria-hidden="true">↗</span>
+      </a>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,39 @@
+---
+import { getEntry } from 'astro:content';
+
+import ArticleCard from './ArticleCard.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCategoryUrl, getPostUrl, getPublishedPosts, postBelongsToCategory, type BlogCategory } from '../lib/content';
+import { locales, otherLocale, type Locale } from '../lib/i18n';
+
+interface Props { category: BlogCategory }
+const { category } = Astro.props;
+const locale = category.data.locale as Locale;
+const nextLocale = otherLocale(locale);
+const allCategories = await import('astro:content').then(({ getCollection }) => getCollection('categories'));
+const translation = allCategories.find((candidate) => candidate.data.translationKey === category.data.translationKey && candidate.data.locale === nextLocale);
+const posts = (await getPublishedPosts(locale)).filter((post) => postBelongsToCategory(post, category));
+const path = getCategoryUrl(category);
+const alternatePath = translation ? getCategoryUrl(translation) : locales[nextLocale].categoriesPath;
+---
+
+<BaseLayout locale={locale} title={`${category.data.name} | Bigmelo Blog`} description={category.data.description} canonicalPath={path} alternatePath={alternatePath}>
+  <header class="archive-header page-shell">
+    <a class="back-link" href={locales[locale].categoriesPath}><span>←</span>{locale === 'es' ? 'Todas las categorías' : 'All categories'}</a>
+    <p class="eyebrow">{category.data.eyebrow}</p>
+    <h1>{category.data.name}</h1>
+    <p>{category.data.description}</p>
+  </header>
+  <section class="archive-content page-shell">
+    {posts.length > 0 ? (
+      <div class="article-grid">
+        {posts.map(async (post) => {
+          const primary = await getEntry(post.data.categories[0]);
+          return primary ? <ArticleCard post={post} locale={locale} categoryName={primary.data.name} url={getPostUrl(post)} /> : null;
+        })}
+      </div>
+    ) : (
+      <div class="empty-state"><span>✦</span><p>{locale === 'es' ? 'Estamos preparando la primera historia de esta categoría.' : 'We are preparing the first story in this category.'}</p></div>
+    )}
+  </section>
+</BaseLayout>

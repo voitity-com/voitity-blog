@@ -1,0 +1,144 @@
+---
+import { getEntry } from 'astro:content';
+import { Image } from 'astro:assets';
+
+import BaseLayout from './BaseLayout.astro';
+import { getCategoryUrl, getPostUrl, getPublishedPosts, readingTime, type BlogPost } from '../lib/content';
+import { formatDate, locales, otherLocale, type Locale } from '../lib/i18n';
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings: Heading[];
+  post: BlogPost;
+}
+
+const { headings, post } = Astro.props;
+const locale = post.data.locale as Locale;
+const nextLocale = otherLocale(locale);
+const author = await getEntry(post.data.author);
+const categories = (await Promise.all(post.data.categories.map((category) => getEntry(category)))).filter((entry) => entry !== undefined);
+const posts = await getPublishedPosts();
+const translation = posts.find((candidate) => candidate.data.translationKey === post.data.translationKey && candidate.data.locale === nextLocale);
+const canonicalPath = getPostUrl(post);
+const alternatePath = translation ? getPostUrl(translation) : locales[nextLocale].homePath;
+const minutes = readingTime(post.body ?? '');
+const socialImage = post.data.cover.src;
+const tableHeadings = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+
+const copy = locale === 'es'
+  ? {
+      back: 'Volver al blog',
+      cta: 'Descubre cómo crear tu presencia digital con Bigmelo.',
+      ctaButton: 'Conocer Bigmelo',
+      min: 'min de lectura',
+      onThisPage: 'En este artículo',
+      share: 'Compartir',
+      updated: 'Actualizado',
+    }
+  : {
+      back: 'Back to the blog',
+      cta: 'Discover how to create your digital presence with Bigmelo.',
+      ctaButton: 'Discover Bigmelo',
+      min: 'min read',
+      onThisPage: 'In this article',
+      share: 'Share',
+      updated: 'Updated',
+    };
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  author: { '@type': 'Organization', name: author?.data.name ?? 'Bigmelo Team' },
+  dateModified: (post.data.updatedAt ?? post.data.publishedAt).toISOString(),
+  datePublished: post.data.publishedAt.toISOString(),
+  description: post.data.description,
+  headline: post.data.title,
+  image: new URL(socialImage, Astro.site),
+  inLanguage: locale === 'es' ? 'es-CO' : 'en-US',
+  mainEntityOfPage: new URL(canonicalPath, Astro.site),
+  publisher: { '@type': 'Organization', name: 'Bigmelo', url: 'https://bigmelo.com' },
+};
+---
+
+<BaseLayout
+  locale={locale}
+  title={`${post.data.title} | Bigmelo Blog`}
+  description={post.data.description}
+  canonicalPath={canonicalPath}
+  alternatePath={alternatePath}
+  image={socialImage}
+  type="article"
+  alternateLinks={translation ? [
+    { href: locale === 'es' ? canonicalPath : getPostUrl(translation), hreflang: 'es' },
+    { href: locale === 'en' ? canonicalPath : getPostUrl(translation), hreflang: 'en' },
+    { href: locale === 'es' ? canonicalPath : getPostUrl(translation), hreflang: 'x-default' },
+  ] : []}
+  structuredData={structuredData}
+>
+  <article class="post-page">
+    <header class="post-header page-shell">
+      <a class="back-link" href={locales[locale].homePath}><span aria-hidden="true">←</span>{copy.back}</a>
+      <div class="post-category-list">
+        {categories.map((category) => <a href={getCategoryUrl(category)}>{category.data.name}</a>)}
+      </div>
+      <h1>{post.data.title}</h1>
+      <p class="post-deck">{post.data.description}</p>
+      <div class="post-byline">
+        <div class="author-mark" aria-hidden="true">B</div>
+        <div>
+          <strong>{author?.data.name ?? 'Bigmelo Team'}</strong>
+          <span>{author?.data.role}</span>
+        </div>
+        <div class="post-meta-detail">
+          <time datetime={post.data.publishedAt.toISOString()}>{formatDate(post.data.publishedAt, locale)}</time>
+          <span>·</span>
+          <span>{minutes} {copy.min}</span>
+          {post.data.updatedAt && <><span>·</span><span>{copy.updated} {formatDate(post.data.updatedAt, locale)}</span></>}
+        </div>
+      </div>
+    </header>
+
+    <div class="post-cover page-shell">
+      <Image src={post.data.cover} alt={post.data.coverAlt} widths={[720, 1080, 1600]} sizes="(max-width: 1500px) 100vw, 1480px" format="webp" loading="eager" />
+    </div>
+
+    <div class="post-layout page-shell">
+      <aside class="post-aside">
+        {tableHeadings.length > 0 && (
+          <nav aria-label={copy.onThisPage}>
+            <strong>{copy.onThisPage}</strong>
+            {tableHeadings.map((heading) => <a class:list={{ nested: heading.depth === 3 }} href={`#${heading.slug}`}>{heading.text}</a>)}
+          </nav>
+        )}
+        <div class="share-block">
+          <strong>{copy.share}</strong>
+          <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(new URL(canonicalPath, Astro.site).href)}`} target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>
+          <a href={`mailto:?subject=${encodeURIComponent(post.data.title)}&body=${encodeURIComponent(new URL(canonicalPath, Astro.site).href)}`}>Email ↗</a>
+        </div>
+      </aside>
+      <div class="post-content prose">
+        <slot />
+      </div>
+    </div>
+
+    <footer class="post-footer page-shell">
+      <div class="author-card">
+        <div class="author-mark large" aria-hidden="true">B</div>
+        <div>
+          <span>{locale === 'es' ? 'Escrito por' : 'Written by'}</span>
+          <h2>{author?.data.name ?? 'Bigmelo Team'}</h2>
+          <p>{author?.data.bio}</p>
+        </div>
+      </div>
+      <div class="post-cta">
+        <p>{copy.cta}</p>
+        <a class="button button-primary" href={(import.meta.env.PUBLIC_MAIN_SITE_URL ?? 'https://bigmelo.com') + '/#contact'}>{copy.ctaButton}<span aria-hidden="true">↗</span></a>
+      </div>
+    </footer>
+  </article>
+</BaseLayout>

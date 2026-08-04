@@ -1,0 +1,351 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Bigmelo blog production infrastructure
+
+Parameters:
+  AcmCertificateArn:
+    Type: String
+    Description: ACM certificate in us-east-1 covering *.bigmelo.com
+  DomainName:
+    Type: String
+    Default: bigmelo.com
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - prod
+  GitHubOrganization:
+    Type: String
+    Default: voitity-com
+  GitHubRepository:
+    Type: String
+    Default: voitity-blog
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+
+Resources:
+  BlogBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub bigmelo-${Environment}-blog-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldNoncurrentVersions
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 60
+              NewerNoncurrentVersions: 5
+            Status: Enabled
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: bigmelo
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Surface
+          Value: blog
+      VersioningConfiguration:
+        Status: Enabled
+
+  BlogOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Description: !Sub Bigmelo ${Environment} blog S3 access
+        Name: !Sub bigmelo-${Environment}-blog-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  BlogSecurityHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub bigmelo-${Environment}-blog-security-headers
+        Comment: Security headers for the Bigmelo blog
+        CustomHeadersConfig:
+          Items:
+            - Header: Permissions-Policy
+              Override: true
+              Value: accelerometer=(), autoplay=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()
+        SecurityHeadersConfig:
+          ContentSecurityPolicy:
+            ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com; img-src 'self' data: https://www.google-analytics.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+            Override: true
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            Override: true
+            ReferrerPolicy: strict-origin-when-cross-origin
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Override: true
+
+  BlogDefaultCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub bigmelo-${Environment}-blog-default-cache
+        Comment: Revalidate HTML while honoring short public cache headers
+        DefaultTTL: 0
+        MaxTTL: 86400
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  BlogAssetCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub bigmelo-${Environment}-blog-assets-cache
+        Comment: Immutable Astro assets
+        DefaultTTL: 31536000
+        MaxTTL: 31536000
+        MinTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  BlogUriRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      AutoPublish: true
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          if (request.uri === "/") {
+            return {
+              statusCode: 302,
+              statusDescription: "Found",
+              headers: {
+                location: { value: "/es" + queryString(request.querystring) },
+                "cache-control": { value: "public,max-age=300" }
+              }
+            };
+          }
+          if (request.uri.endsWith("/")) {
+            return {
+              statusCode: 301,
+              statusDescription: "Moved Permanently",
+              headers: {
+                location: { value: request.uri.slice(0, -1) + queryString(request.querystring) }
+              }
+            };
+          }
+          var finalSegment = request.uri.substring(request.uri.lastIndexOf("/") + 1);
+          if (finalSegment.indexOf(".") === -1) request.uri += "/index.html";
+          return request;
+        }
+        function queryString(query) {
+          var keys = Object.keys(query || {});
+          if (!keys.length) return "";
+          var values = [];
+          for (var index = 0; index < keys.length; index += 1) {
+            var key = keys[index];
+            var entry = query[key];
+            if (entry.multiValue && entry.multiValue.length) {
+              for (var valueIndex = 0; valueIndex < entry.multiValue.length; valueIndex += 1) {
+                values.push(encodeURIComponent(key) + "=" + encodeURIComponent(entry.multiValue[valueIndex].value));
+              }
+            } else {
+              values.push(encodeURIComponent(key) + "=" + encodeURIComponent(entry.value || ""));
+            }
+          }
+          return "?" + values.join("&");
+        }
+      FunctionConfig:
+        Comment: Canonical Bigmelo blog static routes
+        Runtime: cloudfront-js-2.0
+      Name: !Sub bigmelo-${Environment}-blog-uri-rewrite
+
+  BlogDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Sub blog.${DomainName}
+        CacheBehaviors:
+          - AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+            CachePolicyId: !Ref BlogAssetCachePolicy
+            Compress: true
+            PathPattern: /_astro/*
+            ResponseHeadersPolicyId: !Ref BlogSecurityHeadersPolicy
+            TargetOriginId: blog-s3-origin
+            ViewerProtocolPolicy: redirect-to-https
+        Comment: Bigmelo blog
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 0
+            ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+          - ErrorCachingMinTTL: 0
+            ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: !Ref BlogDefaultCachePolicy
+          Compress: true
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt BlogUriRewriteFunction.FunctionARN
+          ResponseHeadersPolicyId: !Ref BlogSecurityHeadersPolicy
+          TargetOriginId: blog-s3-origin
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        Origins:
+          - DomainName: !GetAtt BlogBucket.RegionalDomainName
+            Id: blog-s3-origin
+            OriginAccessControlId: !Ref BlogOriginAccessControl
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn: !Ref AcmCertificateArn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+      Tags:
+        - Key: Project
+          Value: bigmelo
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Surface
+          Value: blog
+
+  BlogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref BlogBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:GetObject
+            Resource: !Sub ${BlogBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${BlogDistribution}
+
+  BlogDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      AliasTarget:
+        DNSName: !GetAtt BlogDistribution.DomainName
+        EvaluateTargetHealth: false
+        HostedZoneId: Z2FDTNDATAQYW2
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub blog.${DomainName}
+      Type: A
+
+  BlogIpv6DnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      AliasTarget:
+        DNSName: !GetAtt BlogDistribution.DomainName
+        EvaluateTargetHealth: false
+        HostedZoneId: Z2FDTNDATAQYW2
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub blog.${DomainName}
+      Type: AAAA
+
+  BlogGitHubDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub bigmelo-${Environment}-blog-github-actions-deploy-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganization}/${GitHubRepository}:ref:refs/heads/prod
+      Policies:
+        - PolicyName: DeployBlogStaticSite
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: !GetAtt BlogBucket.Arn
+              - Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub ${BlogBucket.Arn}/*
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetDistribution
+                  - cloudfront:GetInvalidation
+                Resource: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${BlogDistribution}
+      Tags:
+        - Key: Project
+          Value: bigmelo
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  BlogBucketName:
+    Value: !Ref BlogBucket
+  BlogDistributionDomainName:
+    Value: !GetAtt BlogDistribution.DomainName
+  BlogDistributionId:
+    Value: !Ref BlogDistribution
+  BlogGitHubDeployRoleArn:
+    Value: !GetAtt BlogGitHubDeployRole.Arn
+  BlogUrl:
+    Value: !Sub https://blog.${DomainName}

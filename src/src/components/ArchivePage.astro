@@ -1,0 +1,32 @@
+---
+import { getEntry } from 'astro:content';
+
+import ArticleCard from './ArticleCard.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getPostUrl, getPublishedPosts } from '../lib/content';
+import { locales, otherLocale, type Locale } from '../lib/i18n';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const posts = await getPublishedPosts(locale);
+const nextLocale = otherLocale(locale);
+const copy = locale === 'es'
+  ? { description: 'Todas las historias, guías y perspectivas publicadas por el equipo de Bigmelo.', eyebrow: 'Archivo editorial', title: 'Todas las historias de Bigmelo.' }
+  : { description: 'Every story, guide, and perspective published by the Bigmelo team.', eyebrow: 'Editorial archive', title: 'Every Bigmelo story.' };
+---
+
+<BaseLayout locale={locale} title={`${copy.title} | Bigmelo Blog`} description={copy.description} canonicalPath={locales[locale].articlesPath} alternatePath={locales[nextLocale].articlesPath}>
+  <header class="archive-header page-shell">
+    <p class="eyebrow">{copy.eyebrow}</p>
+    <h1>{copy.title}</h1>
+    <p>{copy.description}</p>
+  </header>
+  <section class="archive-content page-shell">
+    <div class="article-grid">
+      {posts.map(async (post) => {
+        const category = await getEntry(post.data.categories[0]);
+        return category ? <ArticleCard post={post} locale={locale} categoryName={category.data.name} url={getPostUrl(post)} /> : null;
+      })}
+    </div>
+  </section>
+</BaseLayout>

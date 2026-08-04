@@ -1,0 +1,6 @@
+.git
+.gitignore
+src/.astro
+src/.env
+src/dist
+src/node_modules
