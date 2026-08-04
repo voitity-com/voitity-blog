@@ -10,12 +10,14 @@ const mainSiteUrl = import.meta.env.PUBLIC_MAIN_SITE_URL ?? 'https://bigmelo.com
 const copy = locale === 'es'
   ? {
       data: 'Eliminación de datos',
+      preferences: 'Preferencias de cookies',
       privacy: 'Privacidad',
       tagline: 'Presencias digitales con inteligencia artificial, voz autorizada e información verificada.',
       terms: 'Términos',
     }
   : {
       data: 'Data deletion',
+      preferences: 'Cookie preferences',
       privacy: 'Privacy',
       tagline: 'AI-powered digital presences with authorized voice and verified information.',
       terms: 'Terms',
@@ -31,5 +33,6 @@ const copy = locale === 'es'
     <a href={locale === 'es' ? `${mainSiteUrl}/privacidad` : `${mainSiteUrl}/privacy`}>{copy.privacy}</a>
     <a href={locale === 'es' ? `${mainSiteUrl}/terminos` : `${mainSiteUrl}/terms`}>{copy.terms}</a>
     <a href={locale === 'es' ? `${mainSiteUrl}/eliminacion-datos` : `${mainSiteUrl}/data-deletion`}>{copy.data}</a>
+    <button type="button" aria-controls="analytics-consent" aria-haspopup="dialog" data-cookie-settings>{copy.preferences}</button>
   </div>
 </footer>

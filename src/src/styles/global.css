@@ -1111,11 +1111,23 @@ p {
 
 .footer-links {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   font-weight: 800;
 }
 
-.site-footer a:hover {
+.footer-links button {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-weight: inherit;
+}
+
+.site-footer a:hover,
+.site-footer button:hover {
   color: var(--ink);
 }
 

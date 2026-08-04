@@ -6,7 +6,10 @@ interface Props {
 }
 
 const { locale } = Astro.props;
-const measurementId = import.meta.env.PUBLIC_GA4_MEASUREMENT_ID ?? 'G-T9MKE6R87P';
+const configuredMeasurementId = import.meta.env.PUBLIC_GA4_MEASUREMENT_ID?.trim();
+const measurementId = configuredMeasurementId && /^G-[A-Z0-9]+$/.test(configuredMeasurementId)
+  ? configuredMeasurementId
+  : undefined;
 const mainSiteUrl = import.meta.env.PUBLIC_MAIN_SITE_URL ?? 'https://bigmelo.com';
 const copy = locale === 'es'
   ? {
@@ -25,23 +28,29 @@ const copy = locale === 'es'
     };
 ---
 
-<aside class="analytics-consent" role="dialog" aria-label={copy.title} hidden data-consent-banner data-measurement-id={measurementId}>
-  <div>
-    <strong>{copy.title}</strong>
-    <p>{copy.body}</p>
-    <a href={locale === 'es' ? `${mainSiteUrl}/privacidad` : `${mainSiteUrl}/privacy`}>{copy.privacy}</a>
-  </div>
-  <div class="consent-actions">
-    <button class="button button-secondary" type="button" data-consent="denied">{copy.reject}</button>
-    <button class="button button-primary" type="button" data-consent="granted">{copy.accept}</button>
-  </div>
-</aside>
+{measurementId && (
+  <aside id="analytics-consent" class="analytics-consent" role="dialog" aria-label={copy.title} hidden data-consent-banner data-measurement-id={measurementId}>
+    <div>
+      <strong>{copy.title}</strong>
+      <p>{copy.body}</p>
+      <a href={locale === 'es' ? `${mainSiteUrl}/privacidad` : `${mainSiteUrl}/privacy`}>{copy.privacy}</a>
+    </div>
+    <div class="consent-actions">
+      <button class="button button-secondary" type="button" data-consent="denied">{copy.reject}</button>
+      <button class="button button-primary" type="button" data-consent="granted">{copy.accept}</button>
+    </div>
+  </aside>
+)}
 
 <script>
   const COOKIE_NAME = 'bigmelo_analytics_consent';
+  const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
   const banner = document.querySelector<HTMLElement>('[data-consent-banner]');
   const measurementId = banner?.dataset.measurementId;
   const isBigmeloHost = location.hostname === 'bigmelo.com' || location.hostname.endsWith('.bigmelo.com');
+  let analyticsConfigured = false;
+  let consentDefaultsConfigured = false;
+  let pageViewSent = false;
 
   function readConsent() {
     const part = document.cookie.split(';').map((value) => value.trim()).find((value) => value.startsWith(`${COOKIE_NAME}=`));
@@ -53,29 +62,110 @@ const copy = locale === 'es'
     return `Path=/; Max-Age=${maxAge}; SameSite=Lax${domain}`;
   }
 
-  function loadAnalytics() {
-    if (!measurementId || !isBigmeloHost || document.getElementById('bigmelo-blog-ga')) return;
+  function ensureGtag() {
     window.dataLayer = window.dataLayer || [];
-    window.gtag = window.gtag || ((...args: unknown[]) => { window.dataLayer.push(args); });
-    window.gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
-    window.gtag('consent', 'update', { analytics_storage: 'granted' });
-    window.gtag('js', new Date());
-    window.gtag('config', measurementId, {
-      allow_ad_personalization_signals: false,
-      allow_google_signals: false,
-      app_surface: 'blog',
-      page_path: location.pathname,
+    window.gtag = window.gtag || function gtag() {
+      window.dataLayer.push(arguments);
+    };
+  }
+
+  function configureConsentDefaults() {
+    if (consentDefaultsConfigured) return;
+    ensureGtag();
+    window.gtag('consent', 'default', {
+      analytics_storage: 'denied',
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+      functionality_storage: 'granted',
+      security_storage: 'granted',
     });
-    const script = document.createElement('script');
-    script.async = true;
-    script.id = 'bigmelo-blog-ga';
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
-    document.head.appendChild(script);
+    window.gtag('set', 'ads_data_redaction', true);
+    consentDefaultsConfigured = true;
+  }
+
+  function updateConsent(value: 'granted' | 'denied') {
+    configureConsentDefaults();
+    window.gtag('consent', 'update', {
+      analytics_storage: value,
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+    });
+  }
+
+  function removeAnalyticsCookies() {
+    const names = document.cookie
+      .split(';')
+      .map((part) => part.trim().split('=')[0])
+      .filter((name) => name === '_ga' || name.startsWith('_ga_'));
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+
+    names.forEach((name) => {
+      document.cookie = `${name}=; ${cookieAttributes(0)}`;
+      document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+    });
+  }
+
+  function getPublicReferrer() {
+    if (!document.referrer) return '';
+    try {
+      const referrer = new URL(document.referrer);
+      return `${referrer.origin}${referrer.pathname}`;
+    } catch {
+      return '';
+    }
+  }
+
+  function loadAnalytics() {
+    if (!measurementId || !isBigmeloHost) return;
+    updateConsent('granted');
+
+    const pageLocation = `${location.origin}${location.pathname}`;
+    const pageReferrer = getPublicReferrer();
+    if (!analyticsConfigured) {
+      window.gtag('js', new Date());
+      window.gtag('config', measurementId, {
+        allow_ad_personalization_signals: false,
+        allow_google_signals: false,
+        page_location: pageLocation,
+        page_path: location.pathname,
+        page_referrer: pageReferrer,
+        page_title: document.title,
+        send_page_view: false,
+      });
+      analyticsConfigured = true;
+    }
+
+    if (!document.getElementById('bigmelo-blog-ga')) {
+      const script = document.createElement('script');
+      script.async = true;
+      script.id = 'bigmelo-blog-ga';
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+      document.head.appendChild(script);
+    }
+
+    if (!pageViewSent) {
+      window.gtag('event', 'page_view', {
+        app_surface: 'blog',
+        page_location: pageLocation,
+        page_path: location.pathname,
+        page_referrer: pageReferrer,
+        page_title: document.title,
+      });
+      pageViewSent = true;
+    }
   }
 
   function setConsent(value: 'granted' | 'denied') {
-    document.cookie = `${COOKIE_NAME}=${value}; ${cookieAttributes(60 * 60 * 24 * 365)}`;
-    if (value === 'granted') loadAnalytics();
+    document.cookie = `${COOKIE_NAME}=${value}; ${cookieAttributes(COOKIE_MAX_AGE_SECONDS)}`;
+    if (value === 'granted') {
+      loadAnalytics();
+    } else {
+      updateConsent('denied');
+      pageViewSent = false;
+      removeAnalyticsCookies();
+    }
     banner?.setAttribute('hidden', '');
   }
 
@@ -87,7 +177,13 @@ const copy = locale === 'es'
     button.addEventListener('click', () => banner?.removeAttribute('hidden'));
   });
 
+  configureConsentDefaults();
   const consent = readConsent();
-  if (consent === 'granted') loadAnalytics();
-  if (consent !== 'granted' && consent !== 'denied') banner?.removeAttribute('hidden');
+  if (consent === 'granted') {
+    loadAnalytics();
+  } else if (consent === 'denied') {
+    updateConsent('denied');
+  } else {
+    banner?.removeAttribute('hidden');
+  }
 </script>

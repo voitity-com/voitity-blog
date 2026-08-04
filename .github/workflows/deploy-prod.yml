@@ -15,6 +15,7 @@ env:
   BLOG_BUCKET: ${{ vars.AWS_BLOG_BUCKET }}
   BLOG_DISTRIBUTION_ID: ${{ vars.AWS_BLOG_DISTRIBUTION_ID }}
   AWS_ROLE_ARN: ${{ vars.AWS_BLOG_DEPLOY_ROLE_ARN }}
+  PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.PUBLIC_GA4_MEASUREMENT_ID }}
 
 jobs:
   deploy:
@@ -32,6 +33,7 @@ jobs:
           test -n "$BLOG_BUCKET"
           test -n "$BLOG_DISTRIBUTION_ID"
           test -n "$AWS_ROLE_ARN"
+          test -n "$PUBLIC_GA4_MEASUREMENT_ID"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -55,7 +57,6 @@ jobs:
           SITE_URL: https://blog.bigmelo.com
           PUBLIC_MAIN_SITE_URL: https://bigmelo.com
           PUBLIC_ADMIN_URL: https://admin.bigmelo.com
-          PUBLIC_GA4_MEASUREMENT_ID: G-T9MKE6R87P
         run: npm run build
 
       - name: Sync static files
@@ -112,3 +113,7 @@ jobs:
           curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/es/articulos/que-es-bigmelo > /dev/null
           curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/es/articulos/como-crear-tu-primer-perfil-en-bigmelo > /dev/null
           curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/en/articles/how-to-create-your-first-bigmelo-profile > /dev/null
+          HOME_PAGE_HTML="$(curl --fail --silent --show-error --retry 5 --retry-delay 5 https://blog.bigmelo.com/es)"
+          grep --fixed-strings --quiet "data-measurement-id=\"$PUBLIC_GA4_MEASUREMENT_ID\"" <<< "$HOME_PAGE_HTML"
+          BLOG_HEADERS="$(curl --fail --silent --show-error --head --retry 5 --retry-delay 5 https://blog.bigmelo.com/es)"
+          grep --ignore-case --extended-regexp --quiet '^content-security-policy:.*https://www.google.com' <<< "$BLOG_HEADERS"
