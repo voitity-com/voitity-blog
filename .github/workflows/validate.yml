@@ -49,6 +49,14 @@ jobs:
           test -f dist/en/index.html
           test -f dist/es/articulos/que-es-bigmelo/index.html
           test -f dist/en/articles/what-is-bigmelo/index.html
+          test -f dist/es/articulos/como-personalizar-tu-avatar-y-tu-voz-en-bigmelo/index.html
+          test -f dist/en/articles/how-to-personalize-your-avatar-and-voice-in-bigmelo/index.html
+          test -f dist/es/articulos/como-cargar-informacion-y-fuentes-en-bigmelo/index.html
+          test -f dist/en/articles/how-to-add-information-and-sources-in-bigmelo/index.html
+          test -f dist/es/articulos/como-integrar-tus-redes-sociales-en-bigmelo/index.html
+          test -f dist/en/articles/how-to-integrate-your-social-networks-in-bigmelo/index.html
+          test -f dist/es/articulos/como-gestionar-productos-en-bigmelo/index.html
+          test -f dist/en/articles/how-to-manage-products-in-bigmelo/index.html
           test -f dist/rss.xml
           test -f dist/sitemap-index.xml
           test -f dist/404.html

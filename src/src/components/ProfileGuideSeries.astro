@@ -1,0 +1,179 @@
+---
+import type { Locale } from '../lib/i18n';
+
+interface Props {
+  locale: Locale;
+  step: 1 | 2 | 3 | 4 | 5;
+}
+
+const { locale, step } = Astro.props;
+const copy = locale === 'es'
+  ? {
+      label: `Paso ${step} de 5`,
+      next: 'Siguiente paso',
+      previous: 'Paso anterior',
+      title: 'Administra tu perfil en 5 pasos',
+    }
+  : {
+      label: `Step ${step} of 5`,
+      next: 'Next step',
+      previous: 'Previous step',
+      title: 'Manage your profile in 5 steps',
+    };
+
+const steps = locale === 'es'
+  ? [
+      { title: 'Crea tu perfil', url: '/es/articulos/como-crear-tu-primer-perfil-en-bigmelo' },
+      { title: 'Personaliza tu avatar y tu voz', url: '/es/articulos/como-personalizar-tu-avatar-y-tu-voz-en-bigmelo' },
+      { title: 'Carga tu información y tus fuentes', url: '/es/articulos/como-cargar-informacion-y-fuentes-en-bigmelo' },
+      { title: 'Integra tus redes sociales', url: '/es/articulos/como-integrar-tus-redes-sociales-en-bigmelo' },
+      { title: 'Muestra tus productos', url: '/es/articulos/como-gestionar-productos-en-bigmelo' },
+    ]
+  : [
+      { title: 'Create your profile', url: '/en/articles/how-to-create-your-first-bigmelo-profile' },
+      { title: 'Personalize your avatar and voice', url: '/en/articles/how-to-personalize-your-avatar-and-voice-in-bigmelo' },
+      { title: 'Add your information and sources', url: '/en/articles/how-to-add-information-and-sources-in-bigmelo' },
+      { title: 'Integrate your social networks', url: '/en/articles/how-to-integrate-your-social-networks-in-bigmelo' },
+      { title: 'Show your products', url: '/en/articles/how-to-manage-products-in-bigmelo' },
+    ];
+
+const previous = steps[step - 2];
+const next = steps[step];
+---
+
+<nav class="guide-series" aria-label={copy.title}>
+  <div class="guide-series-heading">
+    <span>{copy.label}</span>
+    <strong>{copy.title}</strong>
+  </div>
+  <ol>
+    {steps.map((item, index) => (
+      <li>
+        <a href={item.url} aria-current={index + 1 === step ? 'step' : undefined}>
+          <span>{index + 1}</span>
+          <strong>{item.title}</strong>
+        </a>
+      </li>
+    ))}
+  </ol>
+  {(previous || next) && (
+    <div class="guide-series-navigation">
+      {previous ? <a href={previous.url}><span aria-hidden="true">←</span> {copy.previous}</a> : <span></span>}
+      {next ? <a href={next.url}>{copy.next} <span aria-hidden="true">→</span></a> : <span></span>}
+    </div>
+  )}
+</nav>
+
+<style>
+  .guide-series {
+    margin: 2.2rem 0 2.8rem;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    color: #101624;
+    background: linear-gradient(135deg, rgba(116, 102, 255, 0.08), rgba(139, 183, 255, 0.08));
+    border: 1px solid rgba(16, 22, 36, 0.1);
+    border-radius: 18px;
+  }
+
+  .guide-series-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.15rem;
+  }
+
+  .guide-series-heading span {
+    color: #6658e8;
+    font-size: 0.75rem;
+    font-weight: 850;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+
+  .guide-series-heading strong {
+    font-size: 1rem;
+  }
+
+  ol {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    margin: 0;
+  }
+
+  li a {
+    min-height: 100%;
+    display: grid;
+    align-content: start;
+    gap: 0.5rem;
+    padding: 0.85rem;
+    color: #667085;
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid rgba(16, 22, 36, 0.08);
+    border-radius: 12px;
+    text-decoration: none;
+  }
+
+  li a[aria-current='step'] {
+    color: #101624;
+    background: #fff;
+    border-color: rgba(116, 102, 255, 0.45);
+    box-shadow: 0 12px 30px rgba(16, 22, 36, 0.08);
+  }
+
+  li a > span {
+    width: 1.75rem;
+    height: 1.75rem;
+    display: grid;
+    place-items: center;
+    color: #6658e8;
+    background: rgba(116, 102, 255, 0.1);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 850;
+  }
+
+  li a > strong {
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
+  .guide-series-navigation {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .guide-series-navigation a {
+    color: #4338ca;
+    font-size: 0.82rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .guide-series-navigation a:last-child {
+    text-align: right;
+  }
+
+  @media (max-width: 760px) {
+    .guide-series-heading {
+      display: grid;
+    }
+
+    ol {
+      grid-template-columns: 1fr;
+    }
+
+    li a {
+      grid-template-columns: auto 1fr;
+      align-items: center;
+    }
+  }
+</style>

@@ -1,14 +1,16 @@
 ---
 interface Props {
   linkLabel: string;
+  startSeconds?: number;
   title: string;
   videoId: string;
   watchUrl: string;
 }
 
-const { linkLabel, title, videoId, watchUrl } = Astro.props;
+const { linkLabel, startSeconds, title, videoId, watchUrl } = Astro.props;
 const embedUrl = new URL(`https://www.youtube-nocookie.com/embed/${videoId}`);
 embedUrl.searchParams.set('rel', '0');
+if (startSeconds && startSeconds > 0) embedUrl.searchParams.set('start', String(Math.floor(startSeconds)));
 ---
 
 <div class="video-embed">
